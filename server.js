@@ -9,6 +9,7 @@ require('dotenv').config();
 const apiRoutes         = require('./routes/api.js');
 const fccTestingRoutes  = require('./routes/fcctesting.js');
 const runner            = require('./test-runner');
+const mydb              = require('./connection.js')
 
 let app = express();
 
@@ -23,28 +24,35 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 //Sample front-end
 app.route('/:project/')
-  .get(function (req, res) {
-    res.sendFile(process.cwd() + '/views/issue.html');
-  });
+.get(function (req, res) {
+  res.sendFile(process.cwd() + '/views/issue.html');
+});
 
 //Index page (static HTML)
 app.route('/')
-  .get(function (req, res) {
-    res.sendFile(process.cwd() + '/views/index.html');
-  });
+.get(function (req, res) {
+  res.sendFile(process.cwd() + '/views/index.html');
+});
+mydb(async client => {
 
-//For FCC testing purposes
-fccTestingRoutes(app);
-
-//Routing for API 
-apiRoutes(app);  
-    
-//404 Not Found Middleware
-app.use(function(req, res, next) {
-  res.status(404)
+  
+  const myDatabase = await client.db('issueDB').collection('issuetracker');
+  //For FCC testing purposes
+  fccTestingRoutes(app);
+  
+  //Routing for API 
+  apiRoutes(app, myDatabase);  
+  //404 Not Found Middleware
+  app.use(function(req, res, next) {
+    res.status(404)
     .type('text')
     .send('Not Found');
-});
+  });
+}).catch(err => {
+  app.route('/', (req, res) =>{
+    res.send({error: err, message: 'unable to connect to database'})
+  })
+})
 
 //Start our server and tests!
 const listener = app.listen(process.env.PORT || 3000, function () {
